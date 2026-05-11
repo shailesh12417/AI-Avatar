@@ -25,10 +25,6 @@ interface AvatarAppStore {
   error: string | null;
   setError: (e: string | null) => void;
 
-  // Settings
-  autoListen: boolean;
-  toggleAutoListen: () => void;
-
   // VRM loaded state
   vrmLoaded: boolean;
   setVrmLoaded: (v: boolean) => void;
@@ -68,11 +64,6 @@ export const useAvatarStore = create<AvatarAppStore>((set) => ({
   // Error
   error: null,
   setError: (e) => set({ error: e }),
-
-  // Settings
-  autoListen: true,
-  toggleAutoListen: () =>
-    set((state) => ({ autoListen: !state.autoListen })),
 
   // VRM state
   vrmLoaded: false,

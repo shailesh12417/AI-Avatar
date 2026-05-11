@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useAvatarStore } from "@/lib/stores/avatar-store";
-import ChatPanel from "@/components/ai-avatar/ChatPanel";
 import VoiceControl from "@/components/ai-avatar/VoiceControl";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,11 +9,8 @@ import {
   Brain,
   Volume2,
   Radio,
-  RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Dynamic import for VRM scene (no SSR)
@@ -33,10 +29,10 @@ function AvatarLoadingState() {
           <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-amber-400" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-medium text-white">
             Loading Avatar
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-white/55 mt-1">
             Preparing ARIA...
           </p>
         </div>
@@ -51,9 +47,6 @@ export default function AIAvatarPage() {
     isThinking,
     isSpeaking,
     expression,
-    messages,
-    clearMessages,
-    autoListen,
     error,
     setError,
   } = useAvatarStore();
@@ -92,13 +85,10 @@ export default function AIAvatarPage() {
   const StatusIcon = currentStatus.icon;
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row bg-background overflow-hidden">
-      {/* Avatar Section */}
-      <div className="relative lg:w-[58%] w-full lg:h-full h-[45vh] min-h-[300px] flex flex-col">
-        {/* Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950" />
+    <div className="h-screen bg-stone-950 overflow-hidden">
+      <div className="relative h-full w-full flex flex-col">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.12),_transparent_34%),linear-gradient(180deg,_#0c0a09,_#1c1917_52%,_#0c0a09)]" />
 
-        {/* Decorative grid */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -110,19 +100,21 @@ export default function AIAvatarPage() {
           }}
         />
 
-        {/* Ambient glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[32rem] max-w-[80vw] h-1 bg-gradient-to-r from-transparent via-amber-400/50 to-transparent blur-sm" />
 
-        {/* Platform glow */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-72 h-1 bg-gradient-to-r from-transparent via-amber-400/40 to-transparent blur-sm" />
-
-        {/* VRM Avatar */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-h-0">
           <VRMScene />
         </div>
 
-        {/* Status overlay */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
+        <div className="absolute top-4 left-4 z-10">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-xs font-semibold text-white/90">ARIA</span>
+            <span className="text-[10px] text-white/40">Voice Avatar</span>
+          </div>
+        </div>
+
+        <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
             <div className="relative">
               <div
@@ -138,7 +130,6 @@ export default function AIAvatarPage() {
             </span>
           </div>
 
-          {/* Expression badge */}
           <AnimatePresence mode="wait">
             {expression !== "neutral" && (
               <motion.div
@@ -159,42 +150,9 @@ export default function AIAvatarPage() {
           </AnimatePresence>
         </div>
 
-        {/* Top-right controls */}
-        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-          {messages.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 rounded-full text-white/60 hover:text-white hover:bg-white/10"
-                  onClick={clearMessages}
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Clear conversation</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
-        {/* Top-left branding */}
-        <div className="absolute top-4 left-4 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-xs font-semibold text-white/90">ARIA</span>
-            <span className="text-[10px] text-white/40">AI Avatar</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Chat Section */}
-      <div className="lg:w-[42%] w-full lg:h-full flex-1 flex flex-col bg-background border-l border-border/50">
-        <ChatPanel />
         <VoiceControl />
       </div>
 
-      {/* Error toast */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -209,7 +167,7 @@ export default function AIAvatarPage() {
                 onClick={() => setError(null)}
                 className="ml-2 opacity-70 hover:opacity-100"
               >
-                ×
+                x
               </button>
             </div>
           </motion.div>
