@@ -25,6 +25,10 @@ interface AvatarAppStore {
   error: string | null;
   setError: (e: string | null) => void;
 
+  // Conversation active state
+  isConversationActive: boolean;
+  setConversationActive: (v: boolean) => void;
+
   // VRM loaded state
   vrmLoaded: boolean;
   setVrmLoaded: (v: boolean) => void;
@@ -64,6 +68,10 @@ export const useAvatarStore = create<AvatarAppStore>((set) => ({
   // Error
   error: null,
   setError: (e) => set({ error: e }),
+
+  // Conversation active state
+  isConversationActive: false,
+  setConversationActive: (v) => set({ isConversationActive: v }),
 
   // VRM state
   vrmLoaded: false,

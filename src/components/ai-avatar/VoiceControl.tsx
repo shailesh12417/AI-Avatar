@@ -42,9 +42,7 @@ function useLipSyncWhileSpeaking() {
 }
 
 export default function VoiceControl() {
-  const [conversationActive, setConversationActive] = useState(false);
-
-  const conversationActiveRef = useRef(false);
+  const isConversationActiveRef = useRef(false);
   const sessionRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -55,6 +53,8 @@ export default function VoiceControl() {
     setThinking,
     isSpeaking,
     setSpeaking,
+    isConversationActive,
+    setConversationActive,
     addMessage,
     clearMessages,
     setExpression,
@@ -100,7 +100,7 @@ export default function VoiceControl() {
 
   const scheduleNextListen = useCallback((session: number, delay = 700) => {
     window.setTimeout(() => {
-      if (conversationActiveRef.current && sessionRef.current === session) {
+      if (isConversationActiveRef.current && sessionRef.current === session) {
         startListeningRef.current?.();
       }
     }, delay);
@@ -111,7 +111,7 @@ export default function VoiceControl() {
       if (
         typeof window === "undefined" ||
         !window.speechSynthesis ||
-        !conversationActiveRef.current ||
+        !isConversationActiveRef.current ||
         sessionRef.current !== session
       ) {
         setSpeaking(false);
@@ -139,7 +139,7 @@ export default function VoiceControl() {
       if (preferredVoice) utterance.voice = preferredVoice;
 
       utterance.onstart = () => {
-        if (!conversationActiveRef.current || sessionRef.current !== session) {
+        if (!isConversationActiveRef.current || sessionRef.current !== session) {
           window.speechSynthesis.cancel();
           return;
         }
@@ -171,7 +171,7 @@ export default function VoiceControl() {
     async (text: string, session: number) => {
       if (
         !text.trim() ||
-        !conversationActiveRef.current ||
+        !isConversationActiveRef.current ||
         sessionRef.current !== session
       ) {
         return;
@@ -198,7 +198,7 @@ export default function VoiceControl() {
         const data = await res.json();
 
         if (
-          !conversationActiveRef.current ||
+          !isConversationActiveRef.current ||
           sessionRef.current !== session
         ) {
           return;
@@ -220,7 +220,7 @@ export default function VoiceControl() {
       } catch (err) {
         console.error("Chat error:", err);
         if (
-          conversationActiveRef.current &&
+          isConversationActiveRef.current &&
           sessionRef.current === session
         ) {
           setThinking(false);
@@ -248,7 +248,7 @@ export default function VoiceControl() {
     }
 
     const session = sessionRef.current;
-    if (!conversationActiveRef.current || sessionRef.current !== session) return;
+    if (!isConversationActiveRef.current || sessionRef.current !== session) return;
 
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
@@ -273,7 +273,7 @@ export default function VoiceControl() {
     recognition.onerror = (event: any) => {
       if (event.error === "no-speech" || event.error === "aborted") return;
       console.error("Speech recognition error:", event.error);
-      if (conversationActiveRef.current && sessionRef.current === session) {
+      if (isConversationActiveRef.current && sessionRef.current === session) {
         setError(`Speech recognition: ${event.error}`);
         scheduleNextListen(session, 1000);
       }
@@ -286,7 +286,7 @@ export default function VoiceControl() {
       setListening(false);
       const state = useAvatarStore.getState();
       if (
-        conversationActiveRef.current &&
+        isConversationActiveRef.current &&
         sessionRef.current === session &&
         !state.isThinking &&
         !state.isSpeaking
@@ -318,7 +318,7 @@ export default function VoiceControl() {
 
   const startConversation = useCallback(() => {
     sessionRef.current += 1;
-    conversationActiveRef.current = true;
+    isConversationActiveRef.current = true;
     setConversationActive(true);
     clearMessages();
     setError(null);
@@ -336,7 +336,7 @@ export default function VoiceControl() {
 
   const stopConversation = useCallback(() => {
     sessionRef.current += 1;
-    conversationActiveRef.current = false;
+    isConversationActiveRef.current = false;
     setConversationActive(false);
 
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -364,7 +364,7 @@ export default function VoiceControl() {
   useEffect(() => {
     return () => {
       sessionRef.current += 1;
-      conversationActiveRef.current = false;
+      isConversationActiveRef.current = false;
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
@@ -379,7 +379,7 @@ export default function VoiceControl() {
       ? "Thinking..."
       : isSpeaking
         ? "Speaking..."
-        : conversationActive
+        : isConversationActive
           ? "Ready for your voice"
           : "Conversation stopped";
 
@@ -394,7 +394,7 @@ export default function VoiceControl() {
           <div className="flex min-w-0 items-center gap-3">
             <div
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-                conversationActive
+                isConversationActive
                   ? "bg-amber-400 text-stone-950"
                   : "bg-white/10 text-white/70"
               }`}
@@ -410,7 +410,7 @@ export default function VoiceControl() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-white">{statusLabel}</p>
               <p className="text-xs text-white/55">
-                {conversationActive
+                {isConversationActive
                   ? "Speak naturally. ARIA will reply and listen again."
                   : "Press start to begin a voice conversation."}
               </p>
@@ -436,13 +436,13 @@ export default function VoiceControl() {
 
             <Button
               size="lg"
-              variant={conversationActive ? "destructive" : "default"}
+              variant={isConversationActive ? "destructive" : "default"}
               className="h-12 min-w-44 rounded-full px-6 text-sm font-semibold"
               onClick={
-                conversationActive ? stopConversation : startConversation
+                isConversationActive ? stopConversation : startConversation
               }
             >
-              {conversationActive ? (
+              {isConversationActive ? (
                 <>
                   <PhoneOff className="mr-2 h-4 w-4" />
                   Stop Conversation

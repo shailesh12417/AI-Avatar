@@ -9,6 +9,14 @@ import FallbackAvatar from "./FallbackAvatar";
 
 const VRM_URL = "/avatar.vrm";
 
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function smoothstep(t: number) {
+  return t * t * (3 - 2 * t);
+}
+
 export default function VRMScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState(false);
@@ -28,6 +36,17 @@ export default function VRMScene() {
     nextBlink: 2 + Math.random() * 4,
   });
 
+  // Wave greeting state
+  const waveRef = useRef({
+    active: false,
+    startTime: 0,
+  });
+
+  // Idle wave state
+  const idleWaveRef = useRef(35);
+  const conversationActiveRef = useRef(useAvatarStore.getState().isConversationActive);
+  const prevConversationActiveRef = useRef(useAvatarStore.getState().isConversationActive);
+
   // Store refs for animation loop (avoids stale closures)
   const expressionRef = useRef(useAvatarStore.getState().expression);
   const mouthRef = useRef(useAvatarStore.getState().mouthOpenness);
@@ -38,6 +57,7 @@ export default function VRMScene() {
     const unsub1 = useAvatarStore.subscribe((s) => {
       expressionRef.current = s.expression;
       mouthRef.current = s.mouthOpenness;
+      conversationActiveRef.current = s.isConversationActive;
     });
     return unsub1;
   }, []);
@@ -141,6 +161,11 @@ export default function VRMScene() {
           // Start render loop
           const clock = new THREE.Clock();
           clockRef.current = clock;
+
+          // Start wave greeting (clock is now ready)
+          waveRef.current.active = true;
+          waveRef.current.startTime = clockRef.current.getElapsedTime();
+
           renderLoop();
         } catch (err) {
           console.error("VRM setup error:", err);
@@ -183,17 +208,73 @@ export default function VRMScene() {
           if (blink.value < 0) blink.value = 0;
         }
 
+        // ---- Wave greeting animation ----
+        const WAVE_DURATION = 3.5;
+        const wave = waveRef.current;
+        const waveT = wave.active
+          ? (elapsed - wave.startTime) / WAVE_DURATION
+          : 1;
+
+        if (wave.active && waveT >= 1) {
+          wave.active = false;
+          if (!conversationActiveRef.current) {
+            idleWaveRef.current = elapsed + 20;
+          }
+        }
+
+        // Reset idle timer when conversation stops
+        if (prevConversationActiveRef.current && !conversationActiveRef.current) {
+          idleWaveRef.current = elapsed + 20;
+        }
+        prevConversationActiveRef.current = conversationActiveRef.current;
+
+        // Idle wave trigger — every 20s when conversation is stopped
+        if (!wave.active && !conversationActiveRef.current && elapsed >= idleWaveRef.current) {
+          wave.active = true;
+          wave.startTime = elapsed;
+          idleWaveRef.current = elapsed + 20;
+        }
+
+        const waveAnimating = wave.active && waveT < 1;
+
+        // Interpolation factors across raise→wave→lower phases
+        let armBlend = 0;
+        let headTiltBlend = 0;
+        let smileBlend = 0;
+        let handWaveOsc = 0;
+
+        if (waveAnimating) {
+          if (waveT < 0.25) {
+            const p = smoothstep(waveT / 0.25);
+            armBlend = p;
+            headTiltBlend = p;
+            smileBlend = p;
+          } else if (waveT < 0.8) {
+            armBlend = 1;
+            headTiltBlend = 1;
+            smileBlend = 1;
+            const cycle = (waveT - 0.25) / 0.55;
+            const raw = Math.sin(cycle * Math.PI * 2 * 4);
+            const easeInOut = Math.min(cycle * 4, 1) * Math.min((1 - cycle) * 4, 1);
+            handWaveOsc = raw * 0.5 * easeInOut;
+          } else {
+            const p = smoothstep((waveT - 0.8) / 0.2);
+            armBlend = 1 - p;
+            headTiltBlend = 1 - p;
+            smileBlend = 1 - p;
+          }
+        }
+
         // ---- Expression & Lip sync ----
         if (vrm.expressionManager) {
           try {
-            // Blink (VRM0: blinkLeft/blinkRight, VRM1: blink)
             if (vrm.expressionManager.setValue) {
               vrm.expressionManager.setValue("blink", blink.value);
               vrm.expressionManager.setValue("blinkLeft", blink.value);
               vrm.expressionManager.setValue("blinkRight", blink.value);
             }
 
-            // Lip sync (VRM0/VRM1 common)
+            // Lip sync
             const m = mouthRef.current;
             if (vrm.expressionManager.setValue) {
               vrm.expressionManager.setValue("aa", m * 0.8);
@@ -201,8 +282,8 @@ export default function VRMScene() {
               vrm.expressionManager.setValue("ee", m * 0.1);
             }
 
-            // Expression presets (VRM0 common names)
-            const expr = expressionRef.current;
+            // Expression presets — smile during wave greeting
+            const expr = smileBlend > 0.5 ? "happy" : expressionRef.current;
             const expressionPresets = [
               "neutral",
               "happy",
@@ -221,30 +302,67 @@ export default function VRMScene() {
           }
         }
 
-        // ---- Force arms down at sides (after vrm.update overrides bones) ----
+        // ---- Wave arm positioning (lerp between idle and wave pose) ----
         if (vrm.humanoid) {
           const lUpper = vrm.humanoid.getNormalizedBoneNode("leftUpperArm");
           const rUpper = vrm.humanoid.getNormalizedBoneNode("rightUpperArm");
+
           const lLower = vrm.humanoid.getNormalizedBoneNode("leftLowerArm");
           const rLower = vrm.humanoid.getNormalizedBoneNode("rightLowerArm");
+
           const lHand = vrm.humanoid.getNormalizedBoneNode("leftHand");
           const rHand = vrm.humanoid.getNormalizedBoneNode("rightHand");
 
-          if (lUpper) lUpper.rotation.set(0.2, 0, -1.5);
-          if (rUpper) rUpper.rotation.set(0.2, 0, 1.5);
-          if (lLower) lLower.rotation.set(0, 0, 0);
-          if (rLower) rLower.rotation.set(0, 0, 0);
-          if (lHand) lHand.rotation.set(0, 0, 0);
-          if (rHand) rHand.rotation.set(0, 0, 0);
+          // LEFT ARM IDLE POSITION
+          if (lUpper) {
+            lUpper.rotation.set(0.2, 0, -1.5);
+          }
+
+          if (lLower) {
+            lLower.rotation.set(0, 0, 0);
+          }
+
+          if (lHand) {
+            lHand.rotation.set(0, 0, 0);
+          }
+
+        // RIGHT ARM WAVE ANIMATION
+          if (rUpper) {
+            rUpper.rotation.set(
+              lerp(0.2, -0.9, armBlend),
+              lerp(0, 0.2, armBlend),
+              lerp(1.5, 1.2, armBlend),
+            );
+          }
+
+  // ELBOW BEND
+          if (rLower) {
+            rLower.rotation.set(
+              lerp(0, 1.7, armBlend),
+              0,
+              lerp(0, -1.8, armBlend),
+            );
+          }
+
+  // HAND WAVE
+          if (rHand) {
+            rHand.rotation.set(
+              0,
+              handWaveOsc * 0.8,
+              0.3,
+            );
+          }
         }
 
-        // ---- Idle head motion ----
+        // ---- Head motion with wave tilt ----
         if (vrm.humanoid) {
           const head = vrm.humanoid.getNormalizedBoneNode("head");
           if (head) {
-            head.rotation.x = Math.sin(elapsed * 0.5) * 0.015;
-            head.rotation.y = Math.sin(elapsed * 0.3) * 0.025;
-            head.rotation.z = Math.sin(elapsed * 0.7) * 0.008;
+            head.rotation.set(
+              Math.sin(elapsed * 0.5) * 0.015 + headTiltBlend * 0.04,
+              Math.sin(elapsed * 0.3) * 0.025 + headTiltBlend * -0.08,
+              Math.sin(elapsed * 0.7) * 0.008 + headTiltBlend * 0.06,
+            );
           }
         }
       }
