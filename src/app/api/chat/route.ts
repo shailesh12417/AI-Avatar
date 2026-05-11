@@ -106,7 +106,7 @@ let graphApp: Awaited<ReturnType<typeof buildGraph>> | null = null;
 
 function buildGraph() {
   const llm = new ChatGroq({
-    model: "llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-120b",
     temperature: 0.7,
     maxTokens: 512,
   });

@@ -192,6 +192,7 @@ export default function VoiceControl() {
           window.speechSynthesis.cancel();
           return;
         }
+        setSpeaking(true);
         startLipSync();
         setExpression("talking");
       };

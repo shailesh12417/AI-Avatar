@@ -52,8 +52,8 @@ export default function VRMScene() {
 
     // Camera — upper body portrait view
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-    camera.position.set(0, 1.6, 1.1);
-    camera.lookAt(0, 1.6, 0);
+    camera.position.set(0, 1.50, 1.8);
+    camera.lookAt(0, 1.5, 0);
     cameraRef.current = camera;
 
     // Renderer

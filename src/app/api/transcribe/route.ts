@@ -11,13 +11,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { success: false, error: "GROQ_API_KEY is not configured" },
-        { status: 500 }
-      );
-    }
+    const whisperUrl =
+      process.env.WHISPER_API_URL || "http://127.0.0.1:9090/v1/audio/transcriptions";
 
     // Clean up base64 if it has a data URI prefix
     const base64Audio = audio.includes(",") ? audio.split(",")[1] : audio;
@@ -25,26 +20,18 @@ export async function POST(req: NextRequest) {
     // Decode base64 to binary
     const binaryStr = Buffer.from(base64Audio, "base64");
 
-    // Create a Blob and FormData for the Groq API
     const blob = new Blob([binaryStr], { type: "audio/webm" });
     const formData = new FormData();
     formData.append("file", blob, "audio.webm");
-    formData.append("model", "whisper-large-v3-turbo");
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: formData,
-      }
-    );
+    const response = await fetch(whisperUrl, {
+      method: "POST",
+      body: formData,
+    });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Groq transcription error:", response.status, errText);
+      console.error("Whisper transcription error:", response.status, errText);
       return NextResponse.json(
         {
           success: false,
