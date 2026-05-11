@@ -96,7 +96,7 @@ export default function VRMScene() {
     // Load VRM
     const loader = new GLTFLoader();
     loader.register((parser) => {
-      // @ts-expect-error - VRMLoaderPlugin type mismatch
+    // @ts-expect-error - VRMLoaderPlugin type mismatch
       return new VRMLoaderPlugin(parser);
     });
 
