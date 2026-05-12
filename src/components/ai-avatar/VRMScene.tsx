@@ -40,6 +40,7 @@ export default function VRMScene() {
   const waveRef = useRef({
     active: false,
     startTime: 0,
+    type: "hi", // "hi" | "knock"
   });
 
   // Idle wave state
@@ -164,6 +165,7 @@ export default function VRMScene() {
 
           // Start wave greeting (clock is now ready)
           waveRef.current.active = true;
+          waveRef.current.type = "hi";
           waveRef.current.startTime = clockRef.current.getElapsedTime();
 
           renderLoop();
@@ -218,21 +220,21 @@ export default function VRMScene() {
         if (wave.active && waveT >= 1) {
           wave.active = false;
           if (!conversationActiveRef.current) {
-            idleWaveRef.current = elapsed + 20;
+            idleWaveRef.current = elapsed + 10;
           }
         }
 
         // Reset idle timer when conversation stops
         if (prevConversationActiveRef.current && !conversationActiveRef.current) {
-          idleWaveRef.current = elapsed + 20;
+          idleWaveRef.current = elapsed + 10;
         }
         prevConversationActiveRef.current = conversationActiveRef.current;
 
-        // Idle wave trigger — every 20s when conversation is stopped
+        // Idle wave trigger — every 10s when conversation is stopped
         if (!wave.active && !conversationActiveRef.current && elapsed >= idleWaveRef.current) {
           wave.active = true;
           wave.startTime = elapsed;
-          idleWaveRef.current = elapsed + 20;
+          idleWaveRef.current = elapsed + 10;
         }
 
         const waveAnimating = wave.active && waveT < 1;
